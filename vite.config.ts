@@ -1,25 +1,28 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig, loadEnv} from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 
-export default defineConfig(({mode}) => {
+export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
     plugins: [react(), tailwindcss()],
     define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      // API key is NO LONGER injected into the bundle.
+      // It lives only in Vercel's environment variables, read by /api/analyze.js server-side.
+      // Keeping this as undefined so any accidental direct usage fails loudly.
+      'process.env.GEMINI_API_KEY': JSON.stringify(undefined),
     },
     resolve: {
       alias: {
+        // ✅ FIX: Removed esm.sh URL aliases for react/react-dom.
+        // Those URLs work in AI Studio's browser sandbox but break Vercel's Node.js build step.
+        // Standard npm react/react-dom from package.json is correct for production.
         '@': path.resolve(__dirname, '.'),
-        'react': 'https://esm.sh/react@18.3.1',
-        'react-dom': 'https://esm.sh/react-dom@18.3.1',
       },
     },
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+      // HMR disabled in AI Studio. Do not modify.
       hmr: process.env.DISABLE_HMR !== 'true',
     },
   };

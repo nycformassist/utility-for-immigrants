@@ -1,10 +1,8 @@
-/* FIXED: Added Merriweather serif font per production requirements */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  /* FIXED: Switched from Playfair Display to Merriweather as specified */
   --font-serif: "Merriweather", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
@@ -18,45 +16,33 @@ h1, h2, h3, h4, h5, h6, .font-serif {
   font-family: var(--font-serif);
 }
 
-/* FIXED: Hardened @media print block — watermark now survives PDF export */
+/* ✅ CSS-driven CONFIDENTIAL watermark — no external image dependency.
+   Survives Vercel/Netlify asset stripping and always renders on PDF export. */
 @media print {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+
   body {
     background-color: white;
   }
 
-  /* Confidential watermark — fixed positioning, survives all PDF renderers */
-  body::after {
-    content: "CONFIDENTIAL";
+  .watermark {
+    display: block !important;
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%) rotate(-35deg);
+    font-family: "Merriweather", serif;
     font-size: 5rem;
-    font-weight: 900;
-    font-family: var(--font-serif);
+    font-weight: 700;
     color: rgba(79, 70, 229, 0.07);
     white-space: nowrap;
-    z-index: 9999;
     pointer-events: none;
     letter-spacing: 0.2em;
     text-transform: uppercase;
-  }
-
-  /* Logo watermark layer */
-  body::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: url('https://imgur.com/xwdnkYt.png');
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 40%;
-    opacity: 0.05;
-    z-index: -1;
-    pointer-events: none;
+    z-index: 9999;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .no-print {
