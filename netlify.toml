@@ -1,0 +1,13 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[functions]
+  node_bundle = true
+  # Increase timeout to 26 seconds (Netlify Network Maximum)
+  timeout = 26
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
