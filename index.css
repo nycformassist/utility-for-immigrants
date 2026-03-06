@@ -16,9 +16,29 @@ h1, h2, h3, h4, h5, h6, .font-serif {
   font-family: var(--font-serif);
 }
 
-/* ✅ CSS-driven CONFIDENTIAL watermark — no external image dependency.
-   Survives Vercel/Netlify asset stripping and always renders on PDF export. */
+/* ── CONFIDENTIAL WATERMARK ───────────────────────────────────────────────────
+   CSS text-only — no external image, no imgur dependency.
+   Survives Vercel/Netlify asset stripping.
+   @media print forces it into the PDF stream on all browsers.
+   ─────────────────────────────────────────────────────────────────────────── */
+.watermark {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-35deg);
+  font-family: "Merriweather", serif;
+  font-size: 5rem;
+  font-weight: 700;
+  color: rgba(79, 70, 229, 0.07);
+  white-space: nowrap;
+  pointer-events: none;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  z-index: 0;
+}
+
 @media print {
+  /* Force color rendering — required for watermark to survive PDF export */
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 
@@ -28,19 +48,6 @@ h1, h2, h3, h4, h5, h6, .font-serif {
 
   .watermark {
     display: block !important;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) rotate(-35deg);
-    font-family: "Merriweather", serif;
-    font-size: 5rem;
-    font-weight: 700;
-    color: rgba(79, 70, 229, 0.07);
-    white-space: nowrap;
-    pointer-events: none;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    z-index: 9999;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
