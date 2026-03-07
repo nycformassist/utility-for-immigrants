@@ -1,9 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Playfair Display", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-serif: "Merriweather", ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 }
 
 body {
@@ -16,25 +16,40 @@ h1, h2, h3, h4, h5, h6, .font-serif {
   font-family: var(--font-serif);
 }
 
+/* ── CONFIDENTIAL WATERMARK ───────────────────────────────────────────────────
+   CSS text-only — no external image, no imgur dependency.
+   Survives Vercel/Netlify asset stripping.
+   @media print forces it into the PDF stream on all browsers.
+   ─────────────────────────────────────────────────────────────────────────── */
+.watermark {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-35deg);
+  font-family: "Merriweather", serif;
+  font-size: 5rem;
+  font-weight: 700;
+  color: rgba(79, 70, 229, 0.07);
+  white-space: nowrap;
+  pointer-events: none;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  z-index: 0;
+}
+
 @media print {
+  /* Force color rendering — required for watermark to survive PDF export */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+
   body {
     background-color: white;
   }
-  
-  body::after {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: url('https://imgur.com/xwdnkYt.png');
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: 50%;
-    opacity: 0.08;
-    z-index: -1;
-    pointer-events: none;
+
+  .watermark {
+    display: block !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   .no-print {
