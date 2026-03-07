@@ -67,7 +67,7 @@ Translate the response into the following language code: ${lang || "EN"}
 
     const aiCall = ai.models
       .generateContent({
-        model: "gemini-2.0-flash",   // v1 stable — gemini-3.x / v1beta are not valid in production
+        model: "gemini-2.5-flash",   // stable, available on all API key tiers
         contents: prompt,
       })
       .then((r) => ({ timedOut: false, text: r.text || "" }));
