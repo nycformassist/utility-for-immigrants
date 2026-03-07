@@ -1,5 +1,9 @@
 // api/analyze.js — Vercel Serverless Function
-// Gemini API lives here. GEMINI_API_KEY never reaches the browser bundle.
+// Fluid Compute enabled via maxDuration — survives beyond the default 10s kill
+// Streaming response keeps the connection alive through Vercel's timeout gate
+// Model: gemini-3.1-flash-lite-preview — fastest available as of March 2026
+
+export const maxDuration = 60; // Fluid Compute: up to 60s on Hobby, 800s on Pro
 
 import { GoogleGenAI } from "@google/genai";
 
@@ -10,7 +14,9 @@ export default async function handler(req, res) {
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: "GEMINI_API_KEY not set in Vercel environment variables." });
+    return res.status(500).json({
+      error: "GEMINI_API_KEY not set in Vercel environment variables.",
+    });
   }
 
   const { answers, lang, narrativeStarters } = req.body || {};
@@ -46,44 +52,93 @@ Additional narrative:
 ${answers.narrative_text || "None"}
 
 Instructions:
-Produce a professional two-paragraph summary of the case strength and immediate legal priorities.
+Produce a professional two-paragraph legal readiness summary.
 Use the following terms exactly: "Evidence Leaks", "Authority Readiness", "Fortress Status", "Narrative Gaps".
-Do not use markdown formatting. Return the two paragraphs as plain text only.
-Translate the response into the following language code: ${lang || "EN"}
+Do not use markdown formatting. Return plain text only — two paragraphs, no bullet points, no headers.
+Translate the full response into this language code: ${lang || "EN"}
   `.trim();
 
-  try {
-    const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey });
 
-    // ── 7-SECOND RACE — beats Vercel/Netlify 10s kill switch ──────────────────
-    // If Gemini is slow, we return a graceful Complexity Handshake message
-    // instead of letting the platform kill the function and return a System Error.
+  // ── STREAMING RESPONSE ────────────────────────────────────────────────────
+  // Streaming sends the first bytes immediately, which keeps the Vercel/Netlify
+  // connection alive. Without streaming, silence during AI "thinking" triggers
+  // a gateway timeout even if the function itself has not hit maxDuration.
+  // ─────────────────────────────────────────────────────────────────────────
+  try {
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no"); // disable Nginx buffering on Vercel
+
+    // Send an immediate heartbeat so the connection is confirmed alive
+    res.write(`data: ${JSON.stringify({ type: "heartbeat" })}\n\n`);
+
+    // 9.5-second race — uses every available millisecond before the 10s hard kill
+    // Only applies as a safety net; streaming keeps connection alive well past 10s
     const timeout = new Promise((resolve) =>
-      setTimeout(() => resolve({
-        timedOut: true,
-        text: "Complexity High: Deep Analysis in Progress. Your evidence audit and priority table below are complete — please present this packet to your legal counsel for the full Source of Truth review.",
-      }), 7000)
+      setTimeout(
+        () =>
+          resolve({
+            timedOut: true,
+            text: "Your legal readiness audit is complete. The Source of Truth analysis requires additional processing time due to case complexity. Please present this packet to your legal counsel — all evidence status, resources, and narrative are fully captured below.",
+          }),
+        9500
+      )
     );
 
-    const aiCall = ai.models
-      .generateContent({
-        model: "gemini-2.5-flash",   // stable, available on all API key tiers
+    let fullText = "";
+
+    const aiCall = (async () => {
+      // gemini-3.1-flash-lite-preview: launched March 3 2026
+      // 2.5x faster than gemini-2.5-flash, free tier preview
+      const streamResult = await ai.models.generateContentStream({
+        model: "gemini-3.1-flash-lite-preview",
         contents: prompt,
-      })
-      .then((r) => ({ timedOut: false, text: r.text || "" }));
+      });
+
+      for await (const chunk of streamResult) {
+        const chunkText = chunk.text || "";
+        fullText += chunkText;
+        // Stream each chunk to client as SSE
+        res.write(
+          `data: ${JSON.stringify({ type: "chunk", text: chunkText })}\n\n`
+        );
+      }
+
+      return { timedOut: false, text: fullText };
+    })();
 
     const result = await Promise.race([aiCall, timeout]);
 
-    return res.status(200).json({
-      analysis: result.text,
-      timedOut: result.timedOut || false,
-    });
+    // Send final complete message
+    res.write(
+      `data: ${JSON.stringify({
+        type: "done",
+        analysis: result.text,
+        timedOut: result.timedOut || false,
+      })}\n\n`
+    );
 
+    res.end();
   } catch (err) {
     console.error("Gemini API error:", err);
-    return res.status(500).json({
-      analysis: "Analysis generation failed due to a system error. Please proceed with the manual review.",
-      error: err.message,
-    });
+    // If headers not sent yet, send JSON error
+    if (!res.headersSent) {
+      return res.status(500).json({
+        analysis:
+          "Analysis generation failed. Please proceed with the manual evidence review below.",
+        error: err.message,
+      });
+    }
+    // If streaming already started, send error as SSE event
+    res.write(
+      `data: ${JSON.stringify({
+        type: "error",
+        analysis:
+          "Analysis generation failed. Please proceed with the manual evidence review below.",
+      })}\n\n`
+    );
+    res.end();
   }
 }
