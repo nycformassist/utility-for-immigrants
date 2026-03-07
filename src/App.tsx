@@ -82,6 +82,10 @@ export default function App() {
         .filter((s: any) => answers[s.id] === 'yes')
         .map((s: any) => s.labels['EN']);
 
+      // ── STREAMING FETCH ──────────────────────────────────────────────────
+      // Reads SSE chunks from /api/analyze as they arrive.
+      // The ANALYZING screen stays visible while text streams in.
+      // setStage('PACKET') only fires after the 'done' event — never before.
       const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -89,9 +93,31 @@ export default function App() {
       });
 
       if (!response.ok) throw new Error(`Server error: ${response.status}`);
-      const data = await response.json();
-      // Write to ref first — guaranteed current before render cycle
-      setAnalysis(data.analysis || 'Analysis could not be generated.');
+
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let analysisText = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const lines = decoder.decode(value).split('\n');
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const event = JSON.parse(line.slice(6));
+            if (event.type === 'chunk') {
+              analysisText += event.text;
+            } else if (event.type === 'done') {
+              analysisText = event.analysis || analysisText;
+            } else if (event.type === 'error') {
+              analysisText = event.analysis || 'Analysis generation failed. Please proceed with the manual review.';
+            }
+          } catch { /* skip malformed SSE lines */ }
+        }
+      }
+
+      setAnalysis(analysisText || 'Analysis could not be generated.');
     } catch (error) {
       console.error('AI Generation Error:', error);
       setAnalysis('Analysis generation failed due to a system error. Please proceed with the manual review.');
